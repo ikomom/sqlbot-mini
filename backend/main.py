@@ -61,6 +61,29 @@ async def connect_database(config: DatabaseConfig):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.post("/database/connect/default")
+async def connect_default_database():
+    """使用 .env 中的默认配置连接数据库"""
+    try:
+        default_config = {
+            "type": settings.default_db_type,
+            "host": settings.default_db_host,
+            "port": settings.default_db_port,
+            "database": settings.default_db_name,
+            "username": settings.default_db_user,
+            "password": settings.default_db_password,
+        }
+        db_manager.connect(default_config)
+        
+        # Test connection
+        if not db_manager.test_connection():
+            raise HTTPException(status_code=400, detail="无法连接到默认数据库，请检查 .env 配置")
+        
+        return {"status": "connected", "message": "成功连接到默认数据库"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"连接默认数据库失败: {str(e)}")
+
+
 @app.get("/database/status")
 async def database_status():
     """Check database connection status"""
