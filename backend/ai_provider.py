@@ -1,6 +1,11 @@
 import httpx
+import logging
 from typing import Optional
 from config import settings
+
+# 配置日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class AIProvider:
@@ -25,27 +30,39 @@ class AIProvider:
         
         prompt = self._build_prompt(natural_query, schema_context)
         
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {settings.openai_api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": settings.openai_model,
-                    "messages": [
-                        {"role": "system", "content": "You are a SQL expert. Generate only valid SQL queries without explanations."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    "temperature": 0.1
-                },
-                timeout=30.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            sql = result["choices"][0]["message"]["content"].strip()
-            return self._extract_sql(sql)
+        try:
+            async with httpx.AsyncClient() as client:
+                logger.info(f"Calling OpenAI API with model: {settings.openai_model}")
+                response = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {settings.openai_api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": settings.openai_model,
+                        "messages": [
+                            {"role": "system", "content": "You are a SQL expert. Generate only valid SQL queries without explanations."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        "temperature": 0.1
+                    },
+                    timeout=30.0
+                )
+                response.raise_for_status()
+                result = response.json()
+                sql = result["choices"][0]["message"]["content"].strip()
+                logger.info(f"OpenAI API response received successfully")
+                return self._extract_sql(sql)
+        except httpx.HTTPStatusError as e:
+            logger.error(f"OpenAI API HTTP error: {e.response.status_code} - {e.response.text}")
+            raise ValueError(f"OpenAI API 请求失败: {e.response.status_code} - {e.response.text}")
+        except httpx.RequestError as e:
+            logger.error(f"OpenAI API request error: {str(e)}")
+            raise ValueError(f"OpenAI API 网络错误: {str(e)}")
+        except Exception as e:
+            logger.error(f"OpenAI API unexpected error: {str(e)}")
+            raise ValueError(f"OpenAI API 未知错误: {str(e)}")
     
     async def _anthropic_generate(self, natural_query: str, schema_context: str) -> str:
         """Generate SQL using Anthropic Claude API"""
@@ -54,28 +71,40 @@ class AIProvider:
         
         prompt = self._build_prompt(natural_query, schema_context)
         
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://api.anthropic.com/v1/messages",
-                headers={
-                    "x-api-key": settings.anthropic_api_key,
-                    "anthropic-version": "2023-06-01",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": settings.anthropic_model,
-                    "max_tokens": 1024,
-                    "messages": [
-                        {"role": "user", "content": prompt}
-                    ],
-                    "system": "You are a SQL expert. Generate only valid SQL queries without explanations."
-                },
-                timeout=30.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            sql = result["content"][0]["text"].strip()
-            return self._extract_sql(sql)
+        try:
+            async with httpx.AsyncClient() as client:
+                logger.info(f"Calling Anthropic API with model: {settings.anthropic_model}")
+                response = await client.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={
+                        "x-api-key": settings.anthropic_api_key,
+                        "anthropic-version": "2023-06-01",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": settings.anthropic_model,
+                        "max_tokens": 1024,
+                        "messages": [
+                            {"role": "user", "content": prompt}
+                        ],
+                        "system": "You are a SQL expert. Generate only valid SQL queries without explanations."
+                    },
+                    timeout=30.0
+                )
+                response.raise_for_status()
+                result = response.json()
+                sql = result["content"][0]["text"].strip()
+                logger.info(f"Anthropic API response received successfully")
+                return self._extract_sql(sql)
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Anthropic API HTTP error: {e.response.status_code} - {e.response.text}")
+            raise ValueError(f"Anthropic API 请求失败: {e.response.status_code} - {e.response.text}")
+        except httpx.RequestError as e:
+            logger.error(f"Anthropic API request error: {str(e)}")
+            raise ValueError(f"Anthropic API 网络错误: {str(e)}")
+        except Exception as e:
+            logger.error(f"Anthropic API unexpected error: {str(e)}")
+            raise ValueError(f"Anthropic API 未知错误: {str(e)}")
     
     async def _deepseek_generate(self, natural_query: str, schema_context: str) -> str:
         """使用 DeepSeek API 生成 SQL"""
@@ -84,27 +113,39 @@ class AIProvider:
         
         prompt = self._build_prompt(natural_query, schema_context)
         
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{settings.deepseek_base_url}/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {settings.deepseek_api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": settings.deepseek_model,
-                    "messages": [
-                        {"role": "system", "content": "You are a SQL expert. Generate only valid SQL queries without explanations."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    "temperature": 0.1
-                },
-                timeout=30.0
-            )
-            response.raise_for_status()
-            result = response.json()
-            sql = result["choices"][0]["message"]["content"].strip()
-            return self._extract_sql(sql)
+        try:
+            async with httpx.AsyncClient() as client:
+                logger.info(f"Calling DeepSeek API with model: {settings.deepseek_model}")
+                response = await client.post(
+                    f"{settings.deepseek_base_url}/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {settings.deepseek_api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": settings.deepseek_model,
+                        "messages": [
+                            {"role": "system", "content": "You are a SQL expert. Generate only valid SQL queries without explanations."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        "temperature": 0.1
+                    },
+                    timeout=30.0
+                )
+                response.raise_for_status()
+                result = response.json()
+                sql = result["choices"][0]["message"]["content"].strip()
+                logger.info(f"DeepSeek API response received successfully")
+                return self._extract_sql(sql)
+        except httpx.HTTPStatusError as e:
+            logger.error(f"DeepSeek API HTTP error: {e.response.status_code} - {e.response.text}")
+            raise ValueError(f"DeepSeek API 请求失败: {e.response.status_code} - {e.response.text}")
+        except httpx.RequestError as e:
+            logger.error(f"DeepSeek API request error: {str(e)}")
+            raise ValueError(f"DeepSeek API 网络错误: {str(e)}")
+        except Exception as e:
+            logger.error(f"DeepSeek API unexpected error: {str(e)}")
+            raise ValueError(f"DeepSeek API 未知错误: {str(e)}")
     
     def _build_prompt(self, natural_query: str, schema_context: str) -> str:
         """Build prompt for AI model"""
