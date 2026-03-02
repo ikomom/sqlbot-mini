@@ -148,6 +148,16 @@ async def get_schema():
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.get("/database/suggestions")
+async def get_query_suggestions():
+    """获取基于数据库表结构的查询提示词"""
+    try:
+        suggestions = db_manager.generate_query_suggestions()
+        return {"suggestions": suggestions}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @app.post("/query", response_model=QueryResponse)
 async def execute_natural_query(request: QueryRequest):
     """Convert natural language to SQL and execute"""

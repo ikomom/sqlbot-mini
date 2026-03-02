@@ -52,6 +52,59 @@ class DatabaseManager:
         
         return "\n\n".join(schema_parts)
     
+    def get_tables_info(self) -> List[Dict[str, Any]]:
+        """获取数据库表的详细信息"""
+        if not self.engine:
+            raise ValueError("Database not connected")
+        
+        inspector = inspect(self.engine)
+        tables = inspector.get_table_names()
+        
+        tables_info = []
+        for table in tables:
+            columns = inspector.get_columns(table)
+            tables_info.append({
+                "name": table,
+                "columns": [col['name'] for col in columns],
+                "column_count": len(columns)
+            })
+        
+        return tables_info
+    
+    def generate_query_suggestions(self) -> List[str]:
+        """根据数据库表结构生成查询提示词"""
+        if not self.engine:
+            raise ValueError("Database not connected")
+        
+        tables_info = self.get_tables_info()
+        suggestions = []
+        
+        for table in tables_info:
+            table_name = table['name']
+            columns = table['columns']
+            
+            # 基础查询
+            suggestions.append(f"查询 {table_name} 表的所有数据")
+            suggestions.append(f"统计 {table_name} 表的记录数量")
+            
+            # 如果有常见字段，生成更具体的提示
+            if 'name' in columns or 'title' in columns:
+                name_col = 'name' if 'name' in columns else 'title'
+                suggestions.append(f"按 {name_col} 查询 {table_name}")
+            
+            if 'created_at' in columns or 'create_time' in columns:
+                suggestions.append(f"查询 {table_name} 最近创建的记录")
+            
+            if 'status' in columns:
+                suggestions.append(f"查询 {table_name} 中不同状态的统计")
+            
+            # 如果有 id 字段
+            if 'id' in columns:
+                suggestions.append(f"查询 {table_name} 的前10条记录")
+        
+        # 限制返回数量
+        return suggestions[:8]
+    
     def execute_query(self, sql: str, limit: int = 100) -> Dict[str, Any]:
         """Execute SQL query and return results"""
         if not self.engine:

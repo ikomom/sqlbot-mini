@@ -25,4 +25,10 @@ export const databaseApi = {
    */
   getSchema: (): Promise<DatabaseSchema> => 
     apiClient.get('/database/schema'),
+  
+  /**
+   * 获取查询提示词
+   */
+  getSuggestions: (): Promise<{ suggestions: string[] }> => 
+    apiClient.get('/database/suggestions'),
 }
