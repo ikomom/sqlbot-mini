@@ -13,6 +13,8 @@ class AIProvider:
             return await self._openai_generate(natural_query, schema_context)
         elif self.provider == "anthropic":
             return await self._anthropic_generate(natural_query, schema_context)
+        elif self.provider == "deepseek":
+            return await self._deepseek_generate(natural_query, schema_context)
         else:
             raise ValueError(f"Unsupported AI provider: {self.provider}")
     
@@ -73,6 +75,35 @@ class AIProvider:
             response.raise_for_status()
             result = response.json()
             sql = result["content"][0]["text"].strip()
+            return self._extract_sql(sql)
+    
+    async def _deepseek_generate(self, natural_query: str, schema_context: str) -> str:
+        """使用 DeepSeek API 生成 SQL"""
+        if not settings.deepseek_api_key:
+            raise ValueError("DeepSeek API key not configured")
+        
+        prompt = self._build_prompt(natural_query, schema_context)
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{settings.deepseek_base_url}/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.deepseek_api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": settings.deepseek_model,
+                    "messages": [
+                        {"role": "system", "content": "You are a SQL expert. Generate only valid SQL queries without explanations."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "temperature": 0.1
+                },
+                timeout=30.0
+            )
+            response.raise_for_status()
+            result = response.json()
+            sql = result["choices"][0]["message"]["content"].strip()
             return self._extract_sql(sql)
     
     def _build_prompt(self, natural_query: str, schema_context: str) -> str:

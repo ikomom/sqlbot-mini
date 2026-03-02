@@ -4,11 +4,14 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # AI Provider Settings
-    ai_provider: str = "openai"  # openai or anthropic
+    ai_provider: str = "openai"  # openai, anthropic, or deepseek
     openai_api_key: Optional[str] = None
     openai_model: str = "gpt-4"
     anthropic_api_key: Optional[str] = None
     anthropic_model: str = "claude-3-5-sonnet-20241022"
+    deepseek_api_key: Optional[str] = None
+    deepseek_model: str = "deepseek-chat"
+    deepseek_base_url: str = "https://api.deepseek.com"
     
     # Database Settings (can be overridden at runtime)
     default_db_type: str = "postgresql"
@@ -19,7 +22,7 @@ class Settings(BaseSettings):
     default_db_password: str = ""
     
     # API Settings
-    cors_origins: list = ["http://localhost:5173", "http://localhost:3000"]
+    cors_origins: list = ["http://localhost:5173", "http://localhost:3000", "http://localhost:5174"]
     
     class Config:
         env_file = ".env"

@@ -46,7 +46,7 @@ async def root():
     return {"message": "SQL Bot Mini API", "version": "1.0.0"}
 
 
-@app.post("/api/database/connect")
+@app.post("/database/connect")
 async def connect_database(config: DatabaseConfig):
     """Connect to a database"""
     try:
@@ -61,7 +61,7 @@ async def connect_database(config: DatabaseConfig):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.get("/api/database/status")
+@app.get("/database/status")
 async def database_status():
     """Check database connection status"""
     is_connected = db_manager.test_connection()
@@ -71,7 +71,7 @@ async def database_status():
     }
 
 
-@app.get("/api/database/schema")
+@app.get("/database/schema")
 async def get_schema():
     """Get database schema information"""
     try:
@@ -81,7 +81,7 @@ async def get_schema():
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.post("/api/query", response_model=QueryResponse)
+@app.post("/query", response_model=QueryResponse)
 async def execute_natural_query(request: QueryRequest):
     """Convert natural language to SQL and execute"""
     try:
@@ -109,7 +109,7 @@ async def execute_natural_query(request: QueryRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/query/sql")
+@app.post("/query/sql")
 async def execute_sql(sql: str):
     """Execute raw SQL query"""
     try:

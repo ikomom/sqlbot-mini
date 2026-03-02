@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { databaseApi } from '../api'
 
 export default function DatabaseConfig({ onConnect }) {
   const [config, setConfig] = useState({
@@ -18,17 +19,7 @@ export default function DatabaseConfig({ onConnect }) {
     setError('')
 
     try {
-      const response = await fetch('http://localhost:8001/api/database/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config)
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.detail || '连接失败')
-      }
-
+      await databaseApi.connect(config)
       onConnect(true)
     } catch (err) {
       setError(err.message)

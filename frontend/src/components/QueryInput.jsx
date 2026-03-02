@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { queryApi } from '../api'
 
 export default function QueryInput({ onQueryResult }) {
   const [query, setQuery] = useState('')
@@ -13,18 +14,7 @@ export default function QueryInput({ onQueryResult }) {
     setError('')
 
     try {
-      const response = await fetch('http://localhost:8001/api/query', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ natural_query: query })
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.detail || '查询失败')
-      }
-
-      const result = await response.json()
+      const result = await queryApi.executeNaturalQuery(query)
       onQueryResult(result)
     } catch (err) {
       setError(err.message)
