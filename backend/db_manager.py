@@ -71,8 +71,8 @@ class DatabaseManager:
         
         return tables_info
     
-    def generate_query_suggestions(self) -> List[str]:
-        """根据数据库表结构生成查询提示词"""
+    def generate_query_suggestions(self) -> List[Dict[str, Any]]:
+        """根据数据库表结构生成查询提示词，包含图表类型建议"""
         if not self.engine:
             raise ValueError("Database not connected")
         
@@ -83,27 +83,90 @@ class DatabaseManager:
             table_name = table['name']
             columns = table['columns']
             
-            # 基础查询
-            suggestions.append(f"查询 {table_name} 表的所有数据")
-            suggestions.append(f"统计 {table_name} 表的记录数量")
+            # 1. 表格类查询 - 适合查看详细数据
+            suggestions.append({
+                "query": f"查询 {table_name} 表的前10条记录",
+                "category": "表格",
+                "chart_type": "table",
+                "icon": "📋"
+            })
             
-            # 如果有常见字段，生成更具体的提示
+            # 2. 统计类查询 - 适合柱状图
+            suggestions.append({
+                "query": f"统计 {table_name} 表的记录总数",
+                "category": "统计",
+                "chart_type": "bar",
+                "icon": "📊"
+            })
+            
+            # 3. 分类统计 - 适合饼图或柱状图
+            if 'status' in columns:
+                suggestions.append({
+                    "query": f"统计 {table_name} 中各状态的数量分布",
+                    "category": "分类统计",
+                    "chart_type": "pie",
+                    "icon": "🥧"
+                })
+            
+            if 'type' in columns or 'category' in columns:
+                col = 'type' if 'type' in columns else 'category'
+                suggestions.append({
+                    "query": f"统计 {table_name} 中各 {col} 的数量",
+                    "category": "分类统计",
+                    "chart_type": "pie",
+                    "icon": "🥧"
+                })
+            
+            # 4. 时间序列 - 适合折线图
+            if 'created_at' in columns or 'create_time' in columns or 'date' in columns:
+                date_col = 'created_at' if 'created_at' in columns else ('create_time' if 'create_time' in columns else 'date')
+                suggestions.append({
+                    "query": f"统计 {table_name} 每天的新增数量",
+                    "category": "时间趋势",
+                    "chart_type": "line",
+                    "icon": "📈"
+                })
+                suggestions.append({
+                    "query": f"查询 {table_name} 最近7天的数据趋势",
+                    "category": "时间趋势",
+                    "chart_type": "line",
+                    "icon": "📈"
+                })
+            
+            # 5. 排名类 - 适合横向柱状图
+            if 'amount' in columns or 'price' in columns or 'count' in columns:
+                value_col = 'amount' if 'amount' in columns else ('price' if 'price' in columns else 'count')
+                suggestions.append({
+                    "query": f"查询 {table_name} 中 {value_col} 最高的前10条记录",
+                    "category": "排名",
+                    "chart_type": "bar",
+                    "icon": "🏆"
+                })
+            
+            # 6. 对比分析 - 适合柱状图
             if 'name' in columns or 'title' in columns:
                 name_col = 'name' if 'name' in columns else 'title'
-                suggestions.append(f"按 {name_col} 查询 {table_name}")
-            
-            if 'created_at' in columns or 'create_time' in columns:
-                suggestions.append(f"查询 {table_name} 最近创建的记录")
-            
-            if 'status' in columns:
-                suggestions.append(f"查询 {table_name} 中不同状态的统计")
-            
-            # 如果有 id 字段
-            if 'id' in columns:
-                suggestions.append(f"查询 {table_name} 的前10条记录")
+                suggestions.append({
+                    "query": f"对比 {table_name} 中不同 {name_col} 的数据",
+                    "category": "对比分析",
+                    "chart_type": "bar",
+                    "icon": "📊"
+                })
         
-        # 限制返回数量
-        return suggestions[:8]
+        # 限制返回数量，每个类别最多2个
+        categorized = {}
+        for s in suggestions:
+            cat = s['category']
+            if cat not in categorized:
+                categorized[cat] = []
+            if len(categorized[cat]) < 2:
+                categorized[cat].append(s)
+        
+        result = []
+        for items in categorized.values():
+            result.extend(items)
+        
+        return result[:12]  # 最多返回12个提示词
     
     def execute_query(self, sql: str, limit: int = 100) -> Dict[str, Any]:
         """Execute SQL query and return results"""

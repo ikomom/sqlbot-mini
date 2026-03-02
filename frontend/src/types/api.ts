@@ -14,3 +14,11 @@ export interface ConnectResponse {
   status: string
   message: string
 }
+
+// 查询提示词
+export interface QuerySuggestion {
+  query: string
+  category: string
+  chart_type: 'table' | 'bar' | 'pie' | 'line'
+  icon: string
+}

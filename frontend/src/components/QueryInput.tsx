@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { queryApi, databaseApi } from '@/api'
-import type { QueryResponse, AIProvider } from '@/types'
+import type { QueryResponse, AIProvider, QuerySuggestion } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -18,7 +18,7 @@ export default function QueryInput({ onQueryResult }: QueryInputProps) {
   const [aiProvider, setAiProvider] = useState<AIProvider>('deepseek')
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [suggestions, setSuggestions] = useState<QuerySuggestion[]>([])
 
   // 获取查询提示词
   useEffect(() => {
@@ -54,9 +54,18 @@ export default function QueryInput({ onQueryResult }: QueryInputProps) {
     }
   }
 
-  const handleSuggestionClick = (suggestion: string) => {
-    setQuery(suggestion)
+  const handleSuggestionClick = (suggestion: QuerySuggestion) => {
+    setQuery(suggestion.query)
   }
+
+  // 按类别分组提示词
+  const groupedSuggestions = suggestions.reduce((acc, suggestion) => {
+    if (!acc[suggestion.category]) {
+      acc[suggestion.category] = []
+    }
+    acc[suggestion.category].push(suggestion)
+    return acc
+  }, {} as Record<string, QuerySuggestion[]>)
 
   return (
     <Card className="mb-5">
@@ -85,31 +94,40 @@ export default function QueryInput({ onQueryResult }: QueryInputProps) {
               id="query-input"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="输入你的查询，例如：显示所有用户的数量"
+              placeholder="输入你的查询，例如：统计用户表中各状态的数量分布"
               rows={4}
               className="resize-y"
             />
           </div>
 
-          {/* 查询提示词 */}
-          {suggestions.length > 0 && (
-            <div className="space-y-2">
+          {/* 查询提示词 - 按类别分组 */}
+          {Object.keys(groupedSuggestions).length > 0 && (
+            <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Lightbulb className="w-4 h-4" />
                 <span>快速查询示例：</span>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {suggestions.map((suggestion, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    className="px-3 py-1.5 text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-md transition-colors border border-indigo-200"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
+              
+              {Object.entries(groupedSuggestions).map(([category, items]) => (
+                <div key={category} className="space-y-2">
+                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    {category}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {items.map((suggestion, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => handleSuggestionClick(suggestion)}
+                        className="px-3 py-1.5 text-sm bg-white hover:bg-indigo-50 text-gray-700 hover:text-indigo-700 rounded-md transition-colors border border-gray-200 hover:border-indigo-300 flex items-center gap-1.5"
+                      >
+                        <span>{suggestion.icon}</span>
+                        <span>{suggestion.query}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 

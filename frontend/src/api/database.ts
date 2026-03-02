@@ -1,5 +1,5 @@
 import apiClient from './client'
-import type { DatabaseConfig, DatabaseStatus, DatabaseSchema, ConnectResponse } from '@/types'
+import type { DatabaseConfig, DatabaseStatus, DatabaseSchema, ConnectResponse, QuerySuggestion } from '@/types'
 
 export const databaseApi = {
   /**
@@ -29,6 +29,6 @@ export const databaseApi = {
   /**
    * 获取查询提示词
    */
-  getSuggestions: (): Promise<{ suggestions: string[] }> => 
+  getSuggestions: (): Promise<{ suggestions: QuerySuggestion[] }> => 
     apiClient.get('/database/suggestions'),
 }
