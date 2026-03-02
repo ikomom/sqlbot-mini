@@ -4,11 +4,12 @@
 
 ## 功能特性
 
-- 🤖 支持多种AI提供商（OpenAI、Anthropic Claude）
+- 🤖 支持多种AI提供商（OpenAI、Anthropic Claude、DeepSeek）
 - 🗄️ 支持多种数据库（PostgreSQL、MySQL、SQLite）
 - 📊 自动生成图表可视化
-- 🌐 简洁的Web界面
+- 🌐 现代化的 Web 界面（TypeScript + shadcn/ui）
 - ⚡ 快速响应的异步架构
+- 🎨 精美的 UI 设计（Tailwind CSS）
 
 ## 技术栈
 
@@ -18,8 +19,11 @@
 - httpx - 异步HTTP客户端
 
 ### 前端
-- React 18 - UI框架
+- React 18 + TypeScript - UI框架
 - Vite - 构建工具
+- Tailwind CSS - 样式框架
+- shadcn/ui - 组件库
+- axios - HTTP 客户端
 - Recharts - 图表库
 
 ## 快速开始
@@ -76,14 +80,15 @@ cd frontend
 npm run dev
 ```
 
-前端将运行在 http://localhost:5173
+前端将运行在 http://localhost:5174
 
 ### 4. 使用
 
-1. 打开浏览器访问 http://localhost:5173
+1. 打开浏览器访问 http://localhost:5174
 2. 配置数据库连接信息
-3. 输入自然语言查询，例如："显示所有用户的数量"
-4. 查看生成的SQL和可视化结果
+3. 选择 AI 模型（OpenAI/Anthropic/DeepSeek）
+4. 输入自然语言查询，例如："显示所有用户的数量"
+5. 查看生成的SQL和可视化结果
 
 ## API文档
 
@@ -104,14 +109,18 @@ npm run dev
 
 - **OpenAI**: GPT-4, GPT-3.5
 - **Anthropic**: Claude 3.5 Sonnet
+- **DeepSeek**: DeepSeek Chat
 
 在 `.env` 文件中配置：
 
 ```env
-AI_PROVIDER=openai  # 或 anthropic
+AI_PROVIDER=openai  # 或 anthropic, deepseek
 OPENAI_API_KEY=your_key
 ANTHROPIC_API_KEY=your_key
+DEEPSEEK_API_KEY=your_key
 ```
+
+用户也可以在前端界面动态选择使用哪个 AI 模型。
 
 ### 数据库
 
