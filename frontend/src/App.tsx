@@ -4,31 +4,50 @@ import ChartDisplay from './components/ChartDisplay'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2 } from 'lucide-react'
 import type { QueryResponse } from '@/types'
-import { databaseApi } from '@/api'
 
 function App() {
   const [connected, setConnected] = useState<boolean>(false)
   const [connecting, setConnecting] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+  const [statusMessage, setStatusMessage] = useState<string>('正在连接数据库...')
   const [queryResult, setQueryResult] = useState<QueryResponse | null>(null)
 
-  // 自动连接到默认数据库
+  // 使用 SSE 连接到默认数据库
   useEffect(() => {
-    const connectToDefaultDatabase = async () => {
+    const eventSource = new EventSource('/api/database/connect/stream')
+
+    eventSource.onmessage = (event) => {
       try {
-        setConnecting(true)
-        setError(null)
-        await databaseApi.connectDefault()
-        setConnected(true)
-      } catch (err: any) {
-        setError(err.message || '连接数据库失败')
-        setConnected(false)
-      } finally {
-        setConnecting(false)
+        const data = JSON.parse(event.data)
+        
+        setStatusMessage(data.message)
+        
+        if (data.status === 'connected') {
+          setConnected(true)
+          setConnecting(false)
+          setError(null)
+          eventSource.close()
+        } else if (data.status === 'error') {
+          setConnected(false)
+          setConnecting(false)
+          setError(data.message)
+          eventSource.close()
+        }
+      } catch (err) {
+        console.error('解析 SSE 消息失败:', err)
       }
     }
 
-    connectToDefaultDatabase()
+    eventSource.onerror = (err) => {
+      console.error('SSE 连接错误:', err)
+      setError('无法连接到服务器')
+      setConnecting(false)
+      eventSource.close()
+    }
+
+    return () => {
+      eventSource.close()
+    }
   }, [])
 
   return (
@@ -42,7 +61,7 @@ function App() {
         {connecting && (
           <div className="bg-white p-10 rounded-lg text-center">
             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-indigo-600" />
-            <p className="text-gray-600">正在连接数据库...</p>
+            <p className="text-gray-600">{statusMessage}</p>
           </div>
         )}
 

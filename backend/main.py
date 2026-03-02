@@ -1,7 +1,10 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
+import asyncio
+import json
 from config import settings
 from db_manager import db_manager
 from ai_provider import AIProvider
@@ -82,6 +85,47 @@ async def connect_default_database():
         return {"status": "connected", "message": "成功连接到默认数据库"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"连接默认数据库失败: {str(e)}")
+
+
+@app.get("/database/connect/stream")
+async def connect_database_stream():
+    """使用 SSE 流式推送数据库连接状态"""
+    async def event_generator():
+        try:
+            # 发送开始连接消息
+            yield f"data: {json.dumps({'status': 'connecting', 'message': '正在连接数据库...'})}\n\n"
+            await asyncio.sleep(0.5)
+            
+            # 尝试连接
+            default_config = {
+                "type": settings.default_db_type,
+                "host": settings.default_db_host,
+                "port": settings.default_db_port,
+                "database": settings.default_db_name,
+                "username": settings.default_db_user,
+                "password": settings.default_db_password,
+            }
+            
+            db_manager.connect(default_config)
+            
+            # 测试连接
+            if not db_manager.test_connection():
+                yield f"data: {json.dumps({'status': 'error', 'message': '无法连接到数据库，请检查 .env 配置'})}\n\n"
+            else:
+                yield f"data: {json.dumps({'status': 'connected', 'message': '成功连接到数据库'})}\n\n"
+                
+        except Exception as e:
+            yield f"data: {json.dumps({'status': 'error', 'message': f'连接失败: {str(e)}'})}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 
 @app.get("/database/status")

@@ -14,7 +14,7 @@ interface QueryInputProps {
 
 export default function QueryInput({ onQueryResult }: QueryInputProps) {
   const [query, setQuery] = useState<string>('')
-  const [aiProvider, setAiProvider] = useState<AIProvider>('openai')
+  const [aiProvider, setAiProvider] = useState<AIProvider>('deepseek')
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
 

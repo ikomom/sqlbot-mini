@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 class Settings(BaseSettings):
     # AI Provider Settings
-    ai_provider: str = "openai"  # openai, anthropic, or deepseek
+    ai_provider: str = "deepseek"  # openai, anthropic, or deepseek
     openai_api_key: Optional[str] = None
     openai_model: str = "gpt-4"
     anthropic_api_key: Optional[str] = None
