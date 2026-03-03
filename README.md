@@ -39,7 +39,7 @@ pip install -r requirements.txt
 #### 前端
 ```bash
 cd frontend
-npm install
+pnpm install  # 或 npm install
 ```
 
 ### 2. 配置环境变量
@@ -53,11 +53,19 @@ cp .env.example .env
 编辑 `.env` 文件，至少需要配置一个AI提供商的API密钥：
 
 ```env
+# 推荐使用 DeepSeek（性价比高）
+AI_PROVIDER=deepseek
+DEEPSEEK_API_KEY=your-key-here
+```
+
+或使用 OpenAI：
+
+```env
 AI_PROVIDER=openai
 OPENAI_API_KEY=sk-your-key-here
 ```
 
-或使用Anthropic Claude：
+或使用 Anthropic Claude：
 
 ```env
 AI_PROVIDER=anthropic
@@ -72,12 +80,12 @@ cd backend
 python main.py
 ```
 
-后端将运行在 http://localhost:8000
+后端将运行在 http://localhost:8001
 
 #### 启动前端
 ```bash
 cd frontend
-npm run dev
+pnpm dev  # 或 npm run dev
 ```
 
 前端将运行在 http://localhost:5174
@@ -94,7 +102,7 @@ npm run dev
 
 ## API文档
 
-启动后端后，访问 http://localhost:8000/docs 查看完整的API文档
+启动后端后，访问 http://localhost:8001/docs 查看完整的API文档
 
 ### 主要端点
 
@@ -116,10 +124,10 @@ npm run dev
 在 `.env` 文件中配置：
 
 ```env
-AI_PROVIDER=openai  # 或 anthropic, deepseek
+AI_PROVIDER=deepseek  # 推荐，或 openai, anthropic
+DEEPSEEK_API_KEY=your_key
 OPENAI_API_KEY=your_key
 ANTHROPIC_API_KEY=your_key
-DEEPSEEK_API_KEY=your_key
 ```
 
 用户也可以在前端界面动态选择使用哪个 AI 模型。
@@ -140,21 +148,30 @@ DEEPSEEK_API_KEY=your_key
 sqlbot-mini/
 ├── backend/
 │   ├── main.py           # FastAPI应用入口
-│   ├── config.py         # 配置管理
-│   ├── ai_provider.py    # AI集成
-│   ├── db_manager.py     # 数据库管理
+│   ├── config.py         # 配置管理（Pydantic Settings）
+│   ├── ai_provider.py    # AI集成（OpenAI/Anthropic/DeepSeek）
+│   ├── db_manager.py     # 数据库管理（SQLAlchemy）
+│   ├── test/             # 测试文件
 │   └── requirements.txt  # Python依赖
 ├── frontend/
 │   ├── src/
-│   │   ├── App.jsx                      # 主应用组件
-│   │   ├── components/
-│   │   │   ├── DatabaseConfig.jsx      # 数据库配置
-│   │   │   ├── QueryInput.jsx          # 查询输入
-│   │   │   └── ChartDisplay.jsx        # 图表显示
-│   │   └── main.jsx                     # 入口文件
+│   │   ├── App.tsx                      # 主应用组件
+│   │   ├── main.tsx                     # 入口文件
+│   │   ├── api/                         # API调用封装
+│   │   ├── components/                  # React组件
+│   │   │   ├── DatabaseConfig.tsx      # 数据库配置
+│   │   │   ├── QueryInput.tsx          # 查询输入
+│   │   │   ├── ChartDisplay.tsx        # 图表显示
+│   │   │   └── ...
+│   │   ├── stores/                      # Zustand状态管理
+│   │   ├── types/                       # TypeScript类型定义
+│   │   └── utils/                       # 工具函数
 │   ├── package.json      # Node依赖
+│   ├── tsconfig.json     # TypeScript配置
+│   ├── tailwind.config.js # Tailwind CSS配置
 │   └── vite.config.js    # Vite配置
 ├── .env.example          # 环境变量模板
+├── AGENTS.md             # AI编码助手指南
 └── README.md             # 项目文档
 ```
 
@@ -164,15 +181,26 @@ sqlbot-mini/
 
 ```bash
 cd backend
-# 使用uvicorn启动开发服务器（自动重载）
-uvicorn main:app --reload
+# 使用uvicorn启动开发服务器（自动重载，端口8001）
+uvicorn main:app --reload --port 8001
 ```
 
 ### 前端开发
 
 ```bash
 cd frontend
-npm run dev
+pnpm dev  # 或 npm run dev
+```
+
+### 运行测试
+
+```bash
+# 后端测试
+cd backend
+python test/test.py
+
+# 或使用 pytest（如果配置）
+pytest test/
 ```
 
 ## 注意事项
@@ -181,6 +209,8 @@ npm run dev
 - 数据库查询结果默认限制为100行
 - 生成的SQL会自动添加LIMIT子句以防止大量数据返回
 - 建议在生产环境中添加SQL注入防护和用户认证
+- 后端运行在 **8001 端口**，前端运行在 **5174 端口**
+- 推荐使用 DeepSeek API（性价比高，效果好）
 
 ## TODO
 
