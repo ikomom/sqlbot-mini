@@ -5,9 +5,14 @@ from pydantic import BaseModel
 from typing import Dict, Any, Optional
 import asyncio
 import json
+import logging
+from datetime import datetime
 from config import settings
 from db_manager import db_manager
 from ai_provider import AIProvider
+
+# 配置日志
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="SQL Bot Mini")
 
@@ -41,6 +46,7 @@ class QueryResponse(BaseModel):
     columns: list
     data: list
     row_count: int
+    log_info: Dict[str, Any]  # 新增字段
 
 
 # Endpoints
@@ -160,8 +166,11 @@ async def get_query_suggestions():
 
 @app.post("/query", response_model=QueryResponse)
 async def execute_natural_query(request: QueryRequest):
-    """Convert natural language to SQL and execute"""
+    """Convert natural language to SQL and execute with auto-retry on errors"""
     try:
+        # 记录开始时间
+        start_time = datetime.now()
+        
         # Check database connection
         if not db_manager.test_connection():
             raise HTTPException(status_code=400, detail="Database not connected")
@@ -171,17 +180,104 @@ async def execute_natural_query(request: QueryRequest):
         
         # Generate SQL using AI
         ai_provider = AIProvider(provider=request.ai_provider)
-        sql = await ai_provider.generate_sql(request.natural_query, schema_context)
+        sql, ai_metadata = await ai_provider.generate_sql(request.natural_query, schema_context)
         
-        # Execute SQL
-        result = db_manager.execute_query(sql)
+        # 创建 attempts 列表收集所有尝试
+        attempts = []
         
-        return QueryResponse(
-            sql=sql,
-            columns=result["columns"],
-            data=result["data"],
-            row_count=result["row_count"]
-        )
+        # 尝试执行 SQL，最多重试 3 次
+        max_retries = 3
+        
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Attempt {attempt + 1}/{max_retries}: Executing SQL")
+                result = db_manager.execute_query(sql)
+                
+                # 记录成功的尝试
+                attempts.append({
+                    "attempt": attempt + 1,
+                    "sql": sql,
+                    "success": True,
+                    "row_count": result["row_count"],
+                    "ai_request": {
+                        "prompt": ai_metadata["prompt"],
+                        "schema_context": ai_metadata["schema_context"]
+                    },
+                    "ai_response": {
+                        "raw_content": ai_metadata["raw_response"],
+                        "model": ai_metadata["model"],
+                        "usage": ai_metadata.get("usage", {})
+                    }
+                })
+                
+                # 构建 log_info
+                log_info = {
+                    "ai_provider": request.ai_provider or settings.ai_provider,
+                    "natural_query": request.natural_query,
+                    "timestamp": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "attempts": attempts,
+                    "total_attempts": len(attempts),
+                    "final_status": "success"
+                }
+                
+                # 成功执行
+                return QueryResponse(
+                    sql=sql,
+                    columns=result["columns"],
+                    data=result["data"],
+                    row_count=result["row_count"],
+                    log_info=log_info
+                )
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(f"Attempt {attempt + 1} failed: {error_msg}")
+                
+                # 记录失败的尝试
+                attempts.append({
+                    "attempt": attempt + 1,
+                    "sql": sql,
+                    "success": False,
+                    "error": error_msg,
+                    "ai_request": {
+                        "prompt": ai_metadata["prompt"],
+                        "schema_context": ai_metadata["schema_context"]
+                    },
+                    "ai_response": {
+                        "raw_content": ai_metadata["raw_response"],
+                        "model": ai_metadata["model"],
+                        "usage": ai_metadata.get("usage", {})
+                    }
+                })
+                
+                # 如果还有重试机会，让 AI 修复 SQL
+                if attempt < max_retries - 1:
+                    logger.info(f"Asking AI to fix SQL error...")
+                    sql, ai_metadata = await ai_provider.fix_sql_error(
+                        request.natural_query,
+                        sql,
+                        error_msg,
+                        schema_context
+                    )
+                    logger.info(f"AI generated fixed SQL: {sql}")
+        
+        # 所有重试都失败，构建 log_info 并返回错误
+        log_info = {
+            "ai_provider": request.ai_provider or settings.ai_provider,
+            "natural_query": request.natural_query,
+            "timestamp": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+            "attempts": attempts,
+            "total_attempts": len(attempts),
+            "final_status": "failed"
+        }
+        
+        error_detail = {
+            "message": f"SQL 执行失败，已尝试 {max_retries} 次",
+            "log_info": log_info
+        }
+        raise HTTPException(status_code=500, detail=error_detail)
+        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
