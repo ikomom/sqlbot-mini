@@ -13,4 +13,27 @@ export interface QueryResponse {
   columns: string[]
   data: Record<string, any>[]
   row_count: number
+  log_info: {
+    ai_provider: string
+    natural_query: string
+    timestamp: string
+    attempts: Array<{
+      attempt: number
+      sql: string
+      success: boolean
+      row_count?: number
+      error?: string
+      ai_request: {
+        prompt: string
+        schema_context: string
+      }
+      ai_response: {
+        raw_content: string
+        model: string
+        usage: object
+      }
+    }>
+    total_attempts: number
+    final_status: 'success' | 'failed'
+  }
 }
