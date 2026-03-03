@@ -2,6 +2,7 @@ from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.engine import Engine
 from typing import Dict, List, Any, Optional
 from config import settings
+import random
 
 
 class DatabaseManager:
@@ -153,19 +154,22 @@ class DatabaseManager:
                     "icon": "📊"
                 })
         
-        # 限制返回数量，每个类别最多2个
+        # 限制返回数量，每个类别最多2个，并随机选择
         categorized = {}
         for s in suggestions:
             cat = s['category']
             if cat not in categorized:
                 categorized[cat] = []
-            if len(categorized[cat]) < 2:
-                categorized[cat].append(s)
+            categorized[cat].append(s)
         
+        # 从每个类别中随机选择最多2个
         result = []
         for items in categorized.values():
-            result.extend(items)
+            random.shuffle(items)  # 随机打乱
+            result.extend(items[:2])  # 取前2个
         
+        # 最后再随机打乱所有结果
+        random.shuffle(result)
         return result[:12]  # 最多返回12个提示词
     
     def execute_query(self, sql: str, limit: int = 100) -> Dict[str, Any]:

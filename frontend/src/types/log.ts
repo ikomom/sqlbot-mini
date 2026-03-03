@@ -33,7 +33,11 @@ export interface QueryLogEntry {
   aiResponse?: {
     raw_content: string
     model: string
-    usage: object
+    usage: {
+      prompt_tokens: number
+      completion_tokens: number
+      total_tokens: number
+    }
   }
 }
 

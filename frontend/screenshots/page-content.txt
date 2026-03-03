@@ -1,0 +1,6 @@
+
+    SQL/BOTNATURAL LANGUAGE → SQL QUERY日志在线自然语言查询AI 模型DeepSeekOpenAIAnthropicDeepSeek查询输入统计 test_run 中各状态的数量分布快速示例🥧统计 test_run 中各状态的数量分布📊统计 chat_hub_messages 表的记录总数📋查询 binary_data 表的前10条记录🏆查询 workflow_statistics 中 count 最高的前10条记录📊统计 test_run 表的记录总数📋查询 event_destinations 表的前10条记录📊对比 chat_hub_tools 中不同 name 的数据📊对比 migrations 中不同 name 的数据🥧统计 variables 中各 type 的数量执行
+    
+  
+
+

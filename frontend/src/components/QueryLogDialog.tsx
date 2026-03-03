@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { Trash2, X } from 'lucide-react'
+import { Trash2, Filter, Search, FileCode } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,6 @@ interface QueryLogDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-// 简单的 debounce 实现
 function debounce<T extends (...args: any[]) => any>(
   func: T,
   wait: number
@@ -40,14 +39,12 @@ export default function QueryLogDialog({ open, onOpenChange }: QueryLogDialogPro
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [searchInput, setSearchInput] = useState(filters.keyword)
 
-  // 防抖更新关键词筛选
   const debouncedSetKeyword = useRef(
     debounce((keyword: string) => {
       setFilter('keyword', keyword)
     }, 300)
   ).current
 
-  // 处理搜索输入变化
   const handleSearchChange = useCallback(
     (value: string) => {
       setSearchInput(value)
@@ -56,17 +53,14 @@ export default function QueryLogDialog({ open, onOpenChange }: QueryLogDialogPro
     [debouncedSetKeyword]
   )
 
-  // 获取筛选后的日志
   const filteredLogs = useMemo(() => getFilteredLogs(), [logs, filters])
 
-  // 清空日志处理
   const handleClearLogs = useCallback(() => {
     clearLogs()
     setShowClearConfirm(false)
     setSearchInput('')
   }, [clearLogs])
 
-  // 清除筛选
   const handleClearFilters = useCallback(() => {
     setFilter('status', 'all')
     setFilter('aiProvider', 'all')
@@ -74,141 +68,140 @@ export default function QueryLogDialog({ open, onOpenChange }: QueryLogDialogPro
     setSearchInput('')
   }, [setFilter])
 
-  // 同步 searchInput 与 filters.keyword
   useEffect(() => {
     if (filters.keyword === '' && searchInput !== '') {
       setSearchInput('')
     }
   }, [filters.keyword])
 
+  const hasActiveFilters = filters.status !== 'all' || filters.aiProvider !== 'all' || filters.keyword !== ''
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
-          <div className="flex items-center justify-between pr-8">
-            <DialogTitle>查询日志</DialogTitle>
-            {logs.length > 0 && (
-              <div className="flex gap-2">
-                {showClearConfirm ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">确认清空所有日志？</span>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleClearLogs}
-                    >
-                      确认
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowClearConfirm(false)}
-                    >
-                      取消
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowClearConfirm(true)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    清空日志
-                  </Button>
-                )}
-              </div>
-            )}
+      <DialogContent className="max-w-5xl h-[85vh] p-0 bg-gradient-to-br from-slate-900 to-slate-800 border-cyan-500/30 flex flex-col">
+        {/* 顶部装饰线 */}
+        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
+        
+        {/* 标题栏 */}
+        <DialogHeader className="px-6 py-3 border-b border-cyan-500/20 bg-slate-900/50 flex-shrink-0">
+          <div className="flex items-center space-x-3">
+            <FileCode className="w-5 h-5 text-cyan-400" />
+            <DialogTitle className="text-lg font-mono text-cyan-100 tracking-wide">
+              查询日志
+            </DialogTitle>
+            <span className="px-2 py-0.5 bg-cyan-500/20 text-cyan-300 text-xs font-mono rounded border border-cyan-500/30">
+              {logs.length}
+            </span>
           </div>
         </DialogHeader>
 
-        {/* 筛选器区域 */}
-        <div className="flex gap-3 py-4 border-b">
-          {/* 状态筛选 */}
-          <div className="flex-1">
-            <Select
-              value={filters.status}
-              onValueChange={(value) => setFilter('status', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="选择状态" />
+        {/* 筛选栏 - 紧凑布局 */}
+        <div className="px-6 py-3 border-b border-cyan-500/20 bg-slate-900/30 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            {/* 状态筛选 */}
+            <Select value={filters.status} onValueChange={(value) => setFilter('status', value)}>
+              <SelectTrigger className="w-32 h-8 bg-slate-800/50 border-cyan-500/30 text-cyan-100 font-mono text-xs hover:border-cyan-500/50">
+                <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部状态</SelectItem>
-                <SelectItem value="success">仅成功</SelectItem>
-                <SelectItem value="failed">仅失败</SelectItem>
+              <SelectContent className="bg-slate-800 border-cyan-500/30">
+                <SelectItem value="all" className="font-mono text-xs text-cyan-100 focus:bg-cyan-500/20">全部</SelectItem>
+                <SelectItem value="success" className="font-mono text-xs text-green-400 focus:bg-cyan-500/20">成功</SelectItem>
+                <SelectItem value="failed" className="font-mono text-xs text-red-400 focus:bg-cyan-500/20">失败</SelectItem>
               </SelectContent>
             </Select>
-          </div>
 
-          {/* AI Provider 筛选 */}
-          <div className="flex-1">
-            <Select
-              value={filters.aiProvider}
-              onValueChange={(value) => setFilter('aiProvider', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="选择模型" />
+            {/* AI 模型筛选 */}
+            <Select value={filters.aiProvider} onValueChange={(value) => setFilter('aiProvider', value)}>
+              <SelectTrigger className="w-32 h-8 bg-slate-800/50 border-cyan-500/30 text-cyan-100 font-mono text-xs hover:border-cyan-500/50">
+                <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部模型</SelectItem>
-                <SelectItem value="openai">OpenAI</SelectItem>
-                <SelectItem value="anthropic">Anthropic</SelectItem>
-                <SelectItem value="deepseek">DeepSeek</SelectItem>
+              <SelectContent className="bg-slate-800 border-cyan-500/30">
+                <SelectItem value="all" className="font-mono text-xs text-cyan-100 focus:bg-cyan-500/20">全部</SelectItem>
+                <SelectItem value="openai" className="font-mono text-xs text-cyan-100 focus:bg-cyan-500/20">OpenAI</SelectItem>
+                <SelectItem value="anthropic" className="font-mono text-xs text-cyan-100 focus:bg-cyan-500/20">Anthropic</SelectItem>
+                <SelectItem value="deepseek" className="font-mono text-xs text-cyan-100 focus:bg-cyan-500/20">DeepSeek</SelectItem>
               </SelectContent>
             </Select>
-          </div>
 
-          {/* 关键词搜索 */}
-          <div className="flex-1 relative">
-            <Input
-              placeholder="搜索查询或 SQL..."
-              value={searchInput}
-              onChange={(e) => handleSearchChange(e.target.value)}
-            />
-            {searchInput && (
-              <button
-                onClick={() => handleSearchChange('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            {/* 关键词搜索 */}
+            <div className="relative flex-1">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+              <Input
+                value={searchInput}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="搜索..."
+                className="h-8 pl-8 bg-slate-800/50 border-cyan-500/30 text-cyan-100 placeholder:text-slate-500 font-mono text-xs focus:border-cyan-400"
+              />
+            </div>
+
+            {/* 操作按钮 */}
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearFilters}
+                className="h-8 text-xs font-mono text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10"
               >
-                <X className="h-4 w-4" />
-              </button>
+                清除
+              </Button>
+            )}
+            
+            {logs.length > 0 && (
+              !showClearConfirm ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowClearConfirm(true)}
+                  className="h-8 text-xs font-mono text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20"
+                >
+                  <Trash2 className="w-3 h-3 mr-1" />
+                  清空
+                </Button>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs font-mono text-red-400">确认?</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleClearLogs}
+                    className="h-8 px-2 text-xs font-mono text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                  >
+                    是
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowClearConfirm(false)}
+                    className="h-8 px-2 text-xs font-mono text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10"
+                  >
+                    否
+                  </Button>
+                </div>
+              )
             )}
           </div>
         </div>
 
-        {/* 日志列表区域 */}
-        <div className="flex-1 overflow-y-auto" style={{ maxHeight: '70vh' }}>
-          {logs.length === 0 ? (
-            // 无日志状态
-            <div className="flex flex-col items-center justify-center py-16 text-gray-500">
-              <div className="text-lg mb-2">暂无查询记录</div>
-              <div className="text-sm">执行查询后将显示在这里</div>
-            </div>
-          ) : filteredLogs.length === 0 ? (
-            // 筛选无结果状态
-            <div className="flex flex-col items-center justify-center py-16 text-gray-500">
-              <div className="text-lg mb-4">未找到匹配的日志</div>
-              <Button variant="outline" onClick={handleClearFilters}>
-                清除筛选
-              </Button>
+        {/* 日志列表 - 可滚动区域 */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 min-h-0">
+          {filteredLogs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <FileCode className="w-16 h-16 text-slate-700 mb-4 opacity-50" />
+              <p className="text-slate-500 font-mono text-sm">
+                {logs.length === 0 ? '暂无日志' : '无匹配日志'}
+              </p>
             </div>
           ) : (
-            // 日志列表
-            <div className="space-y-4 py-4">
-              {filteredLogs.map((log) => (
-                <QueryLogCard key={log.id} log={log} />
-              ))}
-            </div>
+            filteredLogs.map((log) => (
+              <div key={log.id} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <QueryLogCard log={log} />
+              </div>
+            ))
           )}
         </div>
 
-        {/* 底部统计 */}
-        {logs.length > 0 && (
-          <div className="border-t pt-3 text-sm text-gray-600 text-center">
-            显示 {filteredLogs.length} / 总数 {logs.length} 条日志
-          </div>
-        )}
+        {/* 底部装饰线 */}
+        <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent" />
       </DialogContent>
     </Dialog>
   )

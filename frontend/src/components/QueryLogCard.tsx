@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronUp } from 'lucide-react'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { ChevronDown, ChevronUp, CheckCircle2, XCircle, Code2, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { QueryLogEntry } from '@/types/log'
 import { formatTimestamp, truncateText } from '@/utils/formatters'
@@ -13,260 +12,200 @@ export default function QueryLogCard({ log }: QueryLogCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [showAiResponse, setShowAiResponse] = useState(false)
 
-  // 状态指示器
-  const statusIndicator = log.status === 'success' ? '🟢' : '🔴'
-  const statusText = log.status === 'success' ? '成功' : '失败'
-  const borderColor = log.status === 'success' ? 'border-green-500' : 'border-red-500'
+  const isSuccess = log.status === 'success'
+  const statusColor = isSuccess ? 'text-green-400' : 'text-red-400'
+  const borderColor = isSuccess ? 'border-green-500/30' : 'border-red-500/30'
+  const bgGradient = isSuccess 
+    ? 'from-green-950/20 to-green-900/10' 
+    : 'from-red-950/20 to-red-900/10'
 
-  // 结果摘要
   const getSummary = () => {
-    if (log.status === 'success') {
-      return `返回 ${log.rowCount || 0} 行`
+    if (isSuccess) {
+      return `${log.rowCount || 0}行`
     } else {
       const retryCount = log.retries?.length || 0
-      return `尝试 ${retryCount} 次后失败`
+      return `重试${retryCount}次后失败`
     }
   }
 
-  // 获取 SQL 第一行
   const getSqlPreview = () => {
     const firstLine = log.sql.split('\n')[0]
-    return truncateText(firstLine, 80)
+    return truncateText(firstLine, 60)
   }
 
   return (
-    <Card className={`border-l-4 ${borderColor}`}>
-      <CardHeader className="pb-3">
+    <div className={`relative overflow-hidden rounded-lg border ${borderColor} bg-gradient-to-br ${bgGradient} backdrop-blur-sm`}>
+      {/* 顶部状态线 */}
+      <div className={`absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent ${isSuccess ? 'via-green-400' : 'via-red-400'} to-transparent opacity-50`} />
+      
+      {/* 主内容 */}
+      <div className="p-4 space-y-3">
+        {/* 头部信息 */}
         <div className="flex items-start justify-between">
           <div className="flex-1 space-y-2">
-            {/* 状态和基本信息 */}
-            <div className="flex items-center gap-3 text-sm">
-              <span className="text-lg">{statusIndicator}</span>
-              <span className="font-medium">{statusText}</span>
-              <span className="text-gray-500">|</span>
-              <span className="text-gray-600">{formatTimestamp(log.timestamp)}</span>
-              <span className="text-gray-500">|</span>
-              <span className="text-gray-600">{log.aiProvider}</span>
+            {/* 状态行 */}
+            <div className="flex items-center space-x-3 text-xs font-mono">
+              {isSuccess ? (
+                <CheckCircle2 className="w-4 h-4 text-green-400" />
+              ) : (
+                <XCircle className="w-4 h-4 text-red-400" />
+              )}
+              <span className={`font-semibold ${statusColor}`}>
+                {isSuccess ? '成功' : '失败'}
+              </span>
+              <span className="text-slate-600">|</span>
+              <span className="text-slate-400">{formatTimestamp(log.timestamp)}</span>
+              <span className="text-slate-600">|</span>
+              <span className="text-cyan-400 uppercase">{log.aiProvider}</span>
             </div>
 
-            {/* 自然语言查询 */}
+            {/* 查询内容 */}
             <div className="text-sm">
-              <span className="font-medium text-gray-700">查询：</span>
-              <span className="text-gray-900">
-                {truncateText(log.naturalQuery, 100)}
-              </span>
+              <span className="text-slate-500 font-mono text-xs">查询:</span>
+              <p className="text-cyan-100 mt-1">
+                {truncateText(log.naturalQuery, 120)}
+              </p>
             </div>
 
             {/* SQL 预览 */}
             <div className="text-sm">
-              <span className="font-medium text-gray-700">SQL：</span>
-              <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono">
+              <span className="text-slate-500 font-mono text-xs">SQL:</span>
+              <code className="block text-xs bg-slate-900/50 px-3 py-2 rounded font-mono text-cyan-300 mt-1 border border-cyan-500/10">
                 {getSqlPreview()}
               </code>
             </div>
 
             {/* 结果摘要 */}
-            <div className="text-sm">
-              <span className="font-medium text-gray-700">结果：</span>
-              <span className="text-gray-900">{getSummary()}</span>
+            <div className="flex items-center space-x-2 text-xs font-mono">
+              <span className="text-slate-500">结果:</span>
+              <span className={statusColor}>{getSummary()}</span>
             </div>
           </div>
 
-          {/* 查看详情按钮 */}
+          {/* 展开按钮 */}
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="ml-4"
+            className="ml-4 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 font-mono text-xs"
           >
             {isExpanded ? (
               <>
                 <ChevronUp className="h-4 w-4 mr-1" />
-                收起
+                隐藏
               </>
             ) : (
               <>
                 <ChevronDown className="h-4 w-4 mr-1" />
-                查看详情
+                详情
               </>
             )}
           </Button>
         </div>
-      </CardHeader>
 
-      {/* 展开内容 */}
-      {isExpanded && (
-        <CardContent className="space-y-4 border-t pt-4">
-          {/* 完整 SQL */}
-          <div>
-            <div className="font-medium text-sm text-gray-700 mb-2">完整 SQL：</div>
-            <pre className="bg-gray-100 p-3 rounded text-xs font-mono overflow-x-auto">
-              {log.sql}
-            </pre>
-          </div>
-
-          {/* 成功结果 */}
-          {log.status === 'success' && (
+        {/* 展开详情 */}
+        {isExpanded && (
+          <div className="space-y-4 pt-4 border-t border-cyan-500/20 animate-in fade-in slide-in-from-top-2 duration-300">
+            {/* 完整 SQL */}
             <div>
-              <div className="font-medium text-sm text-gray-700">
-                返回行数：<span className="text-green-600">{log.rowCount || 0}</span>
+              <div className="flex items-center space-x-2 mb-2">
+                <Code2 className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="text-xs font-mono text-cyan-300 tracking-wider">完整 SQL</span>
               </div>
+              <pre className="text-xs font-mono text-cyan-100 bg-slate-950/50 p-3 rounded overflow-x-auto border border-cyan-500/10">
+                {log.sql}
+              </pre>
             </div>
-          )}
 
-          {/* 失败重试记录 */}
-          {log.status === 'failed' && log.retries && log.retries.length > 0 && (
-            <div>
-              <div className="font-medium text-sm text-gray-700 mb-2">重试记录：</div>
-              <div className="space-y-3">
-                {log.retries.map((retry, index) => (
-                  <div key={index} className="border border-red-200 rounded p-3 bg-red-50">
-                    <div className="font-medium text-sm text-red-700 mb-2">
-                      尝试 {retry.attempt}/{log.retries!.length}
+            {/* AI 请求/响应 */}
+            {log.aiRequest && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                    <Eye className="w-3.5 h-3.5 text-purple-400" />
+                    <span className="text-xs font-mono text-purple-300 tracking-wider">AI 交互</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAiResponse(!showAiResponse)}
+                    className="text-xs font-mono text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
+                  >
+                    {showAiResponse ? '隐藏' : '显示'}
+                  </Button>
+                </div>
+                
+                {showAiResponse && (
+                  <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div>
+                      <div className="text-xs font-mono text-slate-400 mb-1">请求:</div>
+                      <pre className="text-xs font-mono text-slate-300 bg-slate-950/50 p-3 rounded overflow-x-auto border border-purple-500/10 max-h-40">
+                        {typeof log.aiRequest === 'string' ? log.aiRequest : JSON.stringify(log.aiRequest, null, 2)}
+                      </pre>
                     </div>
-                    <div className="space-y-2">
+                    {log.aiResponse && (
                       <div>
-                        <div className="text-xs text-gray-600 mb-1">SQL：</div>
-                        <pre className="bg-white p-2 rounded text-xs font-mono overflow-x-auto border">
-                          {retry.sql}
+                        <div className="text-xs font-mono text-slate-400 mb-1">响应:</div>
+                        <pre className="text-xs font-mono text-slate-300 bg-slate-950/50 p-3 rounded overflow-x-auto border border-purple-500/10 max-h-40">
+                          {typeof log.aiResponse === 'string' ? log.aiResponse : JSON.stringify(log.aiResponse, null, 2)}
                         </pre>
                       </div>
-                      <div>
-                        <div className="text-xs text-gray-600 mb-1">错误信息：</div>
-                        <div className="bg-white p-2 rounded text-xs text-red-600 border">
-                          {retry.error}
-                        </div>
-                      </div>
-                    </div>
+                    )}
                   </div>
-                ))}
+                )}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* 最终错误 */}
-          {log.status === 'failed' && log.finalError && (
-            <div>
-              <div className="font-medium text-sm text-gray-700 mb-2">最终错误：</div>
-              <div className="bg-red-50 border border-red-200 p-3 rounded text-sm text-red-600">
-                {log.finalError}
-              </div>
-            </div>
-          )}
-
-          {/* 查看 AI 原始响应按钮 */}
-          <div className="pt-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowAiResponse(!showAiResponse)}
-            >
-              {showAiResponse ? (
-                <>
-                  <ChevronUp className="h-4 w-4 mr-1" />
-                  隐藏 AI 原始响应
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="h-4 w-4 mr-1" />
-                  查看 AI 原始响应
-                </>
-              )}
-            </Button>
-          </div>
-
-          {/* AI 原始响应 */}
-          {showAiResponse && (
-            <div className="bg-blue-50 border border-blue-200 rounded p-4 space-y-4">
-              {/* 成功时的 AI 响应 */}
-              {log.status === 'success' && log.aiRequest && log.aiResponse && (
-                <>
-                  <div>
-                    <div className="font-medium text-sm text-blue-900 mb-2">Prompt：</div>
-                    <pre className="bg-white p-3 rounded text-xs font-mono overflow-x-auto border max-h-60">
-                      {log.aiRequest.prompt}
-                    </pre>
-                  </div>
-
-                  <div>
-                    <div className="font-medium text-sm text-blue-900 mb-2">AI 响应内容：</div>
-                    <pre className="bg-white p-3 rounded text-xs font-mono overflow-x-auto border max-h-60">
-                      {log.aiResponse.raw_content}
-                    </pre>
-                  </div>
-
-                  <div>
-                    <div className="font-medium text-sm text-blue-900 mb-2">Token 使用情况：</div>
-                    <div className="bg-white p-3 rounded text-sm border">
-                      <div className="grid grid-cols-3 gap-4">
-                        <div>
-                          <span className="text-gray-600">Prompt：</span>
-                          <span className="font-mono ml-2">
-                            {(log.aiResponse.usage as any)?.prompt_tokens || 'N/A'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">Completion：</span>
-                          <span className="font-mono ml-2">
-                            {(log.aiResponse.usage as any)?.completion_tokens || 'N/A'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">Total：</span>
-                          <span className="font-mono ml-2">
-                            {(log.aiResponse.usage as any)?.total_tokens || 'N/A'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* 失败时的 AI 响应（显示每次重试） */}
-              {log.status === 'failed' && log.retries && log.retries.length > 0 && (
-                <div className="space-y-4">
+            {/* 重试记录 */}
+            {log.retries && log.retries.length > 0 && (
+              <div>
+                <div className="flex items-center space-x-2 mb-3">
+                  <span className="text-xs font-mono text-yellow-400 tracking-wider">重试历史（{log.retries.length}次）</span>
+                </div>
+                <div className="space-y-3">
                   {log.retries.map((retry, index) => (
-                    <div key={index} className="border-t border-blue-300 pt-4 first:border-t-0 first:pt-0">
-                      <div className="font-medium text-sm text-blue-900 mb-3">
-                        尝试 {retry.attempt} 的 AI 响应：
+                    <div key={index} className="rounded border border-yellow-500/20 bg-yellow-950/10 p-3 space-y-2">
+                      <div className="text-xs font-mono text-yellow-400">
+                        第{retry.attempt}次
                       </div>
-
-                      <div className="space-y-3">
+                      <div>
+                        <div className="text-xs font-mono text-slate-400 mb-1">SQL:</div>
+                        <code className="text-xs font-mono text-yellow-300 block bg-slate-950/50 p-2 rounded overflow-x-auto border border-yellow-500/10">
+                          {retry.sql}
+                        </code>
+                      </div>
+                      {retry.error && (
                         <div>
-                          <div className="text-xs text-blue-800 mb-1">Prompt：</div>
-                          <pre className="bg-white p-2 rounded text-xs font-mono overflow-x-auto border max-h-40">
-                            {retry.aiRequest.prompt}
-                          </pre>
-                        </div>
-
-                        <div>
-                          <div className="text-xs text-blue-800 mb-1">AI 响应内容：</div>
-                          <pre className="bg-white p-2 rounded text-xs font-mono overflow-x-auto border max-h-40">
-                            {retry.aiResponse.raw_content}
-                          </pre>
-                        </div>
-
-                        <div>
-                          <div className="text-xs text-blue-800 mb-1">Token 使用：</div>
-                          <div className="bg-white p-2 rounded text-xs border">
-                            <span className="text-gray-600">Prompt: </span>
-                            <span className="font-mono">{retry.aiResponse.usage.prompt_tokens}</span>
-                            <span className="text-gray-600 ml-3">Completion: </span>
-                            <span className="font-mono">{retry.aiResponse.usage.completion_tokens}</span>
-                            <span className="text-gray-600 ml-3">Total: </span>
-                            <span className="font-mono">{retry.aiResponse.usage.total_tokens}</span>
+                          <div className="text-xs font-mono text-slate-400 mb-1">错误:</div>
+                          <div className="text-xs font-mono text-red-400 bg-red-950/30 p-2 rounded border border-red-500/20">
+                            {retry.error}
                           </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      )}
-    </Card>
+              </div>
+            )}
+
+            {/* 最终错误 */}
+            {log.finalError && (
+              <div>
+                <div className="flex items-center space-x-2 mb-2">
+                  <XCircle className="w-3.5 h-3.5 text-red-400" />
+                  <span className="text-xs font-mono text-red-400 tracking-wider">最终错误</span>
+                </div>
+                <div className="text-xs font-mono text-red-300 bg-red-950/30 p-3 rounded border border-red-500/20">
+                  {log.finalError}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 底部装饰线 */}
+      <div className={`absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent ${isSuccess ? 'via-green-500/30' : 'via-red-500/30'} to-transparent`} />
+    </div>
   )
 }
