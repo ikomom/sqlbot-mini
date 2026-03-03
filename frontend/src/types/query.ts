@@ -30,7 +30,11 @@ export interface QueryResponse {
       ai_response: {
         raw_content: string
         model: string
-        usage: object
+        usage: {
+          prompt_tokens: number
+          completion_tokens: number
+          total_tokens: number
+        }
       }
     }>
     total_attempts: number
