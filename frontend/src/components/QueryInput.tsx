@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 import { queryApi, databaseApi } from '@/api'
-import type { QueryResponse, AIProvider, QuerySuggestion, QueryLogEntry } from '@/types'
+import type { QueryResponse, AIProvider, QuerySuggestion, QueryLogEntry, TableSchema } from '@/types'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Sparkles, Zap, AlertTriangle, ChevronRight } from 'lucide-react'
 import { useLogStore } from '@/stores/logStore'
 import { v4 as uuidv4 } from 'uuid'
+import MentionTextarea from '@/components/mention/MentionTextarea'
+import { parseSchemaText } from '@/utils/schemaParser'
 
 interface QueryInputProps {
   onQueryResult: (result: QueryResponse) => void
@@ -27,6 +28,7 @@ export default function QueryInput({ onQueryResult }: QueryInputProps) {
   const [error, setError] = useState<string | null>(null)
   const [errorDetail, setErrorDetail] = useState<ErrorDetail | null>(null)
   const [suggestions, setSuggestions] = useState<QuerySuggestion[]>([])
+  const [tables, setTables] = useState<TableSchema[]>([])
   
   const addLog = useLogStore((state) => state.addLog)
 
@@ -41,6 +43,20 @@ export default function QueryInput({ onQueryResult }: QueryInputProps) {
     }
 
     fetchSuggestions()
+  }, [])
+
+  useEffect(() => {
+    const fetchSchema = async () => {
+      try {
+        const result = await databaseApi.getSchema()
+        setTables(parseSchemaText(result.schema))
+      } catch (err) {
+        console.error('获取 Schema 失败:', err)
+        setTables([])
+      }
+    }
+
+    fetchSchema()
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -183,13 +199,14 @@ export default function QueryInput({ onQueryResult }: QueryInputProps) {
             <Label htmlFor="query-input" className="text-sm font-mono text-cyan-300 tracking-wide">
               查询输入
             </Label>
-            <Textarea
+            <MentionTextarea
               id="query-input"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={setQuery}
               placeholder="输入你的查询，例如：统计用户表中各状态的数量分布"
               rows={4}
               className="resize-y bg-slate-800/50 border-cyan-500/30 text-cyan-50 placeholder:text-slate-500 font-mono text-sm focus:border-cyan-400 focus:ring-cyan-400/20 transition-colors"
+              tables={tables}
             />
           </div>
 
