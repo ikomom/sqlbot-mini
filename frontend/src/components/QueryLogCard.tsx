@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { ChevronDown, ChevronUp, CheckCircle2, XCircle, Code2, Eye } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { ChevronDown, ChevronUp, CheckCircle2, XCircle, Code2, Eye, Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { QueryLogEntry } from '@/types/log'
 import { formatTimestamp, truncateText } from '@/utils/formatters'
@@ -8,9 +8,137 @@ interface QueryLogCardProps {
   log: QueryLogEntry
 }
 
+type AiPayloadNormalized =
+  | { kind: 'json'; rawText: string; jsonValue: unknown }
+  | { kind: 'text'; rawText: string }
+
+function normalizeAiPayload(payload: unknown): AiPayloadNormalized {
+  if (payload === null || payload === undefined) {
+    return { kind: 'text', rawText: '' }
+  }
+
+  if (typeof payload === 'string') {
+    const trimmed = payload.trim()
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        return { kind: 'json', rawText: JSON.stringify(parsed, null, 2), jsonValue: parsed }
+      } catch {
+        return { kind: 'text', rawText: payload }
+      }
+    }
+    return { kind: 'text', rawText: payload }
+  }
+
+  if (typeof payload === 'object') {
+    try {
+      return { kind: 'json', rawText: JSON.stringify(payload, null, 2), jsonValue: payload }
+    } catch {
+      return { kind: 'text', rawText: String(payload) }
+    }
+  }
+
+  return { kind: 'text', rawText: String(payload) }
+}
+
+function unescapeForDisplay(text: string): string {
+  return text
+    .replaceAll('\\r\\n', '\n')
+    .replaceAll('\\n', '\n')
+    .replaceAll('\\t', '\t')
+    .replaceAll('\\r', '\r')
+}
+
+function renderJsonPretty(value: unknown): React.ReactNode {
+  const renderValue = (v: unknown, depth: number): React.ReactNode => {
+    const indent = '  '.repeat(depth)
+    const nextIndent = '  '.repeat(depth + 1)
+
+    if (v === null) return <span className="text-slate-400">null</span>
+    if (typeof v === 'boolean') return <span className="text-amber-300">{String(v)}</span>
+    if (typeof v === 'number') return <span className="text-cyan-300">{String(v)}</span>
+    if (typeof v === 'string') {
+      const display = unescapeForDisplay(v)
+      const isMultiline = display.includes('\n')
+      return (
+        <span className="text-emerald-300">
+          {'"'}
+          <span className={isMultiline ? 'whitespace-pre-wrap break-words' : ''}>{display}</span>
+          {'"'}
+        </span>
+      )
+    }
+
+    if (Array.isArray(v)) {
+      if (v.length === 0) return <span className="text-slate-300">[]</span>
+      return (
+        <span className="text-slate-300">
+          [
+          {'\n'}
+          {v.map((item, i) => (
+            <span key={i}>
+              {nextIndent}
+              {renderValue(item, depth + 1)}
+              {i === v.length - 1 ? '' : ','}
+              {'\n'}
+            </span>
+          ))}
+          {indent}]
+        </span>
+      )
+    }
+
+    if (typeof v === 'object') {
+      const obj = v as Record<string, unknown>
+      const entries = Object.entries(obj)
+      if (entries.length === 0) return <span className="text-slate-300">{'{}'}</span>
+      return (
+        <span className="text-slate-300">
+          {'{'}
+          {'\n'}
+          {entries.map(([k, val], i) => (
+            <span key={k}>
+              {nextIndent}
+              <span className="text-purple-300">{'"'}{k}{'"'}</span>
+              <span className="text-slate-500">: </span>
+              {renderValue(val, depth + 1)}
+              {i === entries.length - 1 ? '' : ','}
+              {'\n'}
+            </span>
+          ))}
+          {indent}
+          {'}'}
+        </span>
+      )
+    }
+
+    return <span className="text-slate-300">{String(v)}</span>
+  }
+
+  return renderValue(value, 0)
+}
+
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+    return
+  } catch {
+    const el = document.createElement('textarea')
+    el.value = text
+    el.style.position = 'fixed'
+    el.style.opacity = '0'
+    document.body.appendChild(el)
+    el.focus()
+    el.select()
+    document.execCommand('copy')
+    document.body.removeChild(el)
+  }
+}
+
 export default function QueryLogCard({ log }: QueryLogCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [showAiResponse, setShowAiResponse] = useState(false)
+  const [aiViewMode, setAiViewMode] = useState<'pretty' | 'raw'>('pretty')
 
   const isSuccess = log.status === 'success'
   const statusColor = isSuccess ? 'text-green-400' : 'text-red-400'
@@ -32,6 +160,9 @@ export default function QueryLogCard({ log }: QueryLogCardProps) {
     const firstLine = log.sql.split('\n')[0]
     return truncateText(firstLine, 60)
   }
+
+  const normalizedAiRequest = useMemo(() => normalizeAiPayload(log.aiRequest), [log.aiRequest])
+  const normalizedAiResponse = useMemo(() => normalizeAiPayload(log.aiResponse), [log.aiResponse])
 
   return (
     <div className={`relative overflow-hidden rounded-lg border ${borderColor} bg-gradient-to-br ${bgGradient} backdrop-blur-sm`}>
@@ -125,29 +256,65 @@ export default function QueryLogCard({ log }: QueryLogCardProps) {
                     <Eye className="w-3.5 h-3.5 text-purple-400" />
                     <span className="text-xs font-mono text-purple-300 tracking-wider">AI 交互</span>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowAiResponse(!showAiResponse)}
-                    className="text-xs font-mono text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
-                  >
-                    {showAiResponse ? '隐藏' : '显示'}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {showAiResponse && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setAiViewMode(aiViewMode === 'pretty' ? 'raw' : 'pretty')}
+                          className="text-xs font-mono text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
+                        >
+                          {aiViewMode === 'pretty' ? '原始' : '美化'}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const req = normalizedAiRequest.rawText
+                            const resp = log.aiResponse ? normalizedAiResponse.rawText : ''
+                            const text = resp ? `请求:\n${req}\n\n响应:\n${resp}\n` : `请求:\n${req}\n`
+                            copyText(text)
+                          }}
+                          className="text-xs font-mono text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
+                        >
+                          <Copy className="w-3.5 h-3.5 mr-1" />
+                          复制
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowAiResponse(!showAiResponse)}
+                      className="text-xs font-mono text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
+                    >
+                      {showAiResponse ? '隐藏' : '显示'}
+                    </Button>
+                  </div>
                 </div>
                 
                 {showAiResponse && (
                   <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
                     <div>
                       <div className="text-xs font-mono text-slate-400 mb-1">请求:</div>
-                      <pre className="text-xs font-mono text-slate-300 bg-slate-950/50 p-3 rounded overflow-x-auto border border-purple-500/10 max-h-40">
-                        {typeof log.aiRequest === 'string' ? log.aiRequest : JSON.stringify(log.aiRequest, null, 2)}
+                      <pre className="text-xs font-mono text-slate-300 bg-slate-950/50 p-3 rounded overflow-auto border border-purple-500/10 max-h-40 whitespace-pre-wrap break-words">
+                        {aiViewMode === 'raw'
+                          ? normalizedAiRequest.rawText
+                          : normalizedAiRequest.kind === 'json'
+                            ? renderJsonPretty(normalizedAiRequest.jsonValue)
+                            : unescapeForDisplay(normalizedAiRequest.rawText)}
                       </pre>
                     </div>
                     {log.aiResponse && (
                       <div>
                         <div className="text-xs font-mono text-slate-400 mb-1">响应:</div>
-                        <pre className="text-xs font-mono text-slate-300 bg-slate-950/50 p-3 rounded overflow-x-auto border border-purple-500/10 max-h-40">
-                          {typeof log.aiResponse === 'string' ? log.aiResponse : JSON.stringify(log.aiResponse, null, 2)}
+                        <pre className="text-xs font-mono text-slate-300 bg-slate-950/50 p-3 rounded overflow-auto border border-purple-500/10 max-h-40 whitespace-pre-wrap break-words">
+                          {aiViewMode === 'raw'
+                            ? normalizedAiResponse.rawText
+                            : normalizedAiResponse.kind === 'json'
+                              ? renderJsonPretty(normalizedAiResponse.jsonValue)
+                              : unescapeForDisplay(normalizedAiResponse.rawText)}
                         </pre>
                       </div>
                     )}
